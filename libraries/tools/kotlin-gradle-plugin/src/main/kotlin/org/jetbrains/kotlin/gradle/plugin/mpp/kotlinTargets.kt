@@ -21,6 +21,7 @@ import org.gradle.api.component.SoftwareComponentFactory
 import org.gradle.api.internal.component.SoftwareComponentInternal
 import org.gradle.api.internal.component.UsageContext
 import org.gradle.api.internal.project.ProjectInternal
+import org.gradle.api.provider.Provider
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.util.ConfigureUtil
 import org.gradle.util.WrapUtil
@@ -84,6 +85,10 @@ abstract class AbstractKotlinTarget(
         buildAdhocComponentsFromKotlinVariants(kotlinComponents)
     }
 
+    /** Workaround for [Gradle issue #13700](https://github.com/gradle/gradle/issues/13700) */
+    private inline fun <reified T> listProvider(noinline provider: () -> Iterable<T>): Provider<List<T>> =
+        project.objects.listProperty(T::class.java).apply { set(project.provider(provider)) }
+
     private fun buildAdhocComponentsFromKotlinVariants(kotlinVariants: Set<KotlinTargetComponent>): Set<SoftwareComponent> {
         val softwareComponentFactoryClass = SoftwareComponentFactory::class.java
         // TODO replace internal API access with injection (not possible until we have this class on the compile classpath)
@@ -98,9 +103,10 @@ abstract class AbstractKotlinTarget(
                         ?: project.configurations.create(kotlinUsageContext.name).also { configuration ->
                             configuration.isCanBeConsumed = false
                             configuration.isCanBeResolved = false
-                            configuration.dependencies.addAll(kotlinUsageContext.dependencies)
-                            configuration.dependencyConstraints.addAll(kotlinUsageContext.dependencyConstraints)
-                            configuration.artifacts.addAll(kotlinUsageContext.artifacts)
+                            /** Add dependencies lazily to avoid freezing the content of the configuration held by [kotlinUsageContext] */
+                            configuration.dependencies.addAllLater(listProvider { kotlinUsageContext.dependencies })
+                            configuration.dependencyConstraints.addAllLater(listProvider { kotlinUsageContext.dependencyConstraints })
+                            configuration.artifacts.addAllLater(listProvider { kotlinUsageContext.artifacts })
 
                             val attributes = kotlinUsageContext.attributes
                             attributes.keySet().forEach {

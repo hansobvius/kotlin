@@ -27,22 +27,32 @@ kotlin {
                 implementation(kotlin("test-annotations-common"))
             }
         }
+        val jvmAndJsMain by creating {
+            dependsOn(commonMain)
+        }
+        val jvmAndJsTest by creating {
+            dependsOn(commonTest)
+        }
         jvm().compilations["main"].defaultSourceSet {
+            dependsOn(jvmAndJsMain)
             dependencies {
                 implementation(kotlin("stdlib"))
             }
         }
         jvm().compilations["test"].defaultSourceSet {
+            dependsOn(jvmAndJsTest)
             dependencies {
                 implementation(kotlin("test-junit"))
             }
         }
         js().compilations["main"].defaultSourceSet {
+            dependsOn(jvmAndJsMain)
             dependencies {
                 implementation(kotlin("stdlib-js"))
             }
         }
         js().compilations["test"].defaultSourceSet {
+            dependsOn(jvmAndJsTest)
             dependencies {
                 implementation(kotlin("test-js"))
             }
